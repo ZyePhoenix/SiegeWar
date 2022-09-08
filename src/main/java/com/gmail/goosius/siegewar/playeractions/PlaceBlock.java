@@ -94,7 +94,7 @@ public class PlaceBlock {
 			Siege nearbySiege = SiegeController.getActiveSiegeAtLocation(event.getLocation());
 			if(qualifiesAsTrapWarfareMitigation(event, nearbySiege)) {
 				event.setCancelled(true);
-				TownyMessaging.sendActionBarMessageToPlayer(player, Component.text(translator.of("msg_err_cannot_alter_blocks_near_siege_banner", NamedTextColor.DARK_RED)));
+				TownyMessaging.sendActionBarMessageToPlayer(player, translator.of("msg_err_cannot_alter_blocks_near_siege_banner", NamedTextColor.DARK_RED));
 				return;
 			}
 

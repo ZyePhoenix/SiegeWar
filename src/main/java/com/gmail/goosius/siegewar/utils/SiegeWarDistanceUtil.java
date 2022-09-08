@@ -257,8 +257,8 @@ public class SiegeWarDistanceUtil {
 	public static boolean isTargetLocationProtectedByTrapWarfareMitigation(Location targetLocation, Location siegeBannerLocation, int protectionRadiusBlocks, int upperHeightLimit, int lowerHeightLimit) {
 		if(!TownyAPI.getInstance().isWilderness(targetLocation)) {
 			return false;  //In town. Protection does not apply.
-		} else if(targetLocation.getY() <= siegeBannerLocation.getY() + upperHeightLimit
-					&& targetLocation.getY() >= siegeBannerLocation.getY() + lowerHeightLimit) {
+		} else if(targetLocation.getY() < siegeBannerLocation.getY() + upperHeightLimit
+					&& targetLocation.getY() > siegeBannerLocation.getY() + lowerHeightLimit) {
 			return false;  //Not high/low enough for protection
 		} else if(areLocationsCloseHorizontally(targetLocation, siegeBannerLocation, protectionRadiusBlocks)) {
 			return true;   //Target location is protected

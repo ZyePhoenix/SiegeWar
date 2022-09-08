@@ -55,8 +55,8 @@ public class DestroyBlock {
 
 		// Trap warfare block protection
 		if (qualifiesAsTrapWarfare(event, nearbySiege)) {
-			TownyMessaging.sendActionBarMessageToPlayer(event.getPlayer(), Component.text(translator.of("msg_err_cannot_alter_blocks_near_siege_banner"), NamedTextColor.DARK_RED));
 			event.setCancelled(true);
+			TownyMessaging.sendActionBarMessageToPlayer(event.getPlayer(), translator.of("msg_err_cannot_alter_blocks_near_siege_banner", NamedTextColor.DARK_RED));
 			return;
 		}
 
