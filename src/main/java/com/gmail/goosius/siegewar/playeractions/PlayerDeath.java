@@ -26,6 +26,9 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.ItemMeta;
 
 /**
  * This class intercepts 'player death' events coming from the SiegeWarBukkitEventListener class.
@@ -77,6 +80,13 @@ public class PlayerDeath {
 					spawnFireWork(deadPlayer, siege);
 					tryAwardingPoints(deadPlayer, deadResidentTown, siege);
 				}
+
+				//Keep and degrade inventory
+				degradeInventory(playerDeathEvent);
+				keepInventory(playerDeathEvent);
+				//Keep level
+				keepLevel(playerDeathEvent);
+
 				// This might be outside of the IN_PROGRESS if statement because players could
 				// be in a BCS and the SiegeStatus changes.
 				tryRemovingPlayerFromBannerControlSession(deadPlayer, siege);
@@ -131,6 +141,51 @@ public class PlayerDeath {
 				replaceMissingBanner(siege.getFlagBlock());
 			Color bannerColor = ((Banner) siege.getFlagBlock().getState()).getBaseColor().getColor();
 			CosmeticUtil.spawnFirework(deadPlayer.getLocation().add(0, 2, 0), Color.RED, bannerColor, true);
+		}
+	}
+
+	private static void degradeInventory(PlayerDeathEvent playerDeathEvent) {
+		Damageable damageable;
+		double maxDurability;
+		int currentDurability, damageToInflict, newDurability, durabilityWarning;
+		boolean closeToBreaking = false;
+		if (SiegeWarSettings.getWarSiegeDeathPenaltyDegradeInventoryEnabled()) {
+			for (ItemStack itemStack : playerDeathEvent.getEntity().getInventory().getContents()) {
+				if (itemStack != null && itemStack.getType().getMaxDurability() != 0 && !itemStack.getItemMeta().isUnbreakable()) {
+					damageable = ((Damageable) itemStack.getItemMeta());
+					maxDurability = itemStack.getType().getMaxDurability();
+					currentDurability = damageable.getDamage();
+					damageToInflict = (int)(maxDurability / 100 * SiegeWarSettings.getWarSiegeDeathPenaltyDegradeInventoryPercentage());
+					newDurability = currentDurability + damageToInflict;
+					if (newDurability >= maxDurability) {
+						damageable.setDamage(Math.max((int)maxDurability-25, currentDurability));
+						closeToBreaking = true;
+					}
+					else {
+						damageable.setDamage(newDurability);
+						durabilityWarning = damageToInflict * 2 + currentDurability;
+						if (durabilityWarning >= maxDurability)
+							closeToBreaking = true;
+					}
+					itemStack.setItemMeta((ItemMeta)damageable);
+				}
+			}
+			if (closeToBreaking) //One or more items are close to breaking, send warning.
+				Messaging.sendMsg(playerDeathEvent.getEntity(), Translatable.of("msg_inventory_degrade_warning"));
+		}
+	}
+
+	private static void keepInventory(PlayerDeathEvent playerDeathEvent) {
+		if(SiegeWarSettings.getWarSiegeDeathPenaltyKeepInventoryEnabled() && !playerDeathEvent.getKeepInventory()) {
+			playerDeathEvent.setKeepInventory(true);
+			playerDeathEvent.getDrops().clear();
+		}
+	}
+
+	private static void keepLevel(PlayerDeathEvent playerDeathEvent) {
+		if(SiegeWarSettings.getWarSiegeDeathPenaltyKeepLevelEnabled() && !playerDeathEvent.getKeepLevel()) {
+			playerDeathEvent.setKeepLevel(true);
+			playerDeathEvent.setDroppedExp(0);
 		}
 	}
 

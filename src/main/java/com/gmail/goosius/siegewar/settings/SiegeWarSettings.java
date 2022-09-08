@@ -16,6 +16,7 @@ import java.time.LocalTime;
 
 import com.gmail.goosius.siegewar.SiegeController;
 import com.gmail.goosius.siegewar.SiegeWar;
+import com.gmail.goosius.siegewar.objects.HeldItemsCombination;
 import com.gmail.goosius.siegewar.utils.SiegeWarDominationAwardsUtil;
 import com.palmergames.bukkit.towny.exceptions.TownyException;
 import com.palmergames.bukkit.towny.object.Nation;
@@ -33,7 +34,8 @@ import org.bukkit.potion.*;
 import org.jetbrains.annotations.Nullable;
 
 public class SiegeWarSettings {
-	
+
+	private static List<HeldItemsCombination> mapHidingItems = null;
 	private static List<DayOfWeek> allowedDaysList = null;
 	private static List<Material> siegeZoneWildernessForbiddenBlockMaterials = null;
 	private static List<Material> siegeZoneWildernessForbiddenBucketMaterials = null;
@@ -193,8 +195,104 @@ public class SiegeWarSettings {
 		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_BESIEGED_TOWN_CANNOT_CHANGE_KING);
 	}
 
+	public static boolean getWarSiegeDeathPenaltyKeepInventoryEnabled() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_DEATH_PENALTY_KEEP_INVENTORY_ENABLED);
+	}
+
+	public static boolean getWarSiegeDeathPenaltyKeepLevelEnabled() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_DEATH_PENALTY_KEEP_LEVEL_ENABLED);
+	}
+
+	public static boolean getWarSiegeDeathPenaltyDegradeInventoryEnabled() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_DEATH_PENALTY_DEGRADE_INVENTORY_ENABLED);
+	}
+
+	public static double getWarSiegeDeathPenaltyDegradeInventoryPercentage() {
+		return Settings.getDouble(ConfigNodes.WAR_SIEGE_DEATH_PENALTY_DEGRADE_INVENTORY_PERCENTAGE);
+	}
+
 	public static int getWarSiegeExtraMoneyPercentagePerTownLevel() {
 		return Settings.getInt(ConfigNodes.WAR_SIEGE_EXTRA_MONEY_PERCENTAGE_PER_TOWN_LEVEL);
+	}
+
+	public static boolean getWarSiegeMapHidingEnabled() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_ENABLED);
+	}
+
+	public static boolean getWarSiegeMapHidingModeAutomaticModeEnabled() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_AUTOMATIC_MODE_ENABLED);
+	}
+
+	public static boolean getWarSiegeMapHidingModeAutomaticModeScopeWilderness() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_AUTOMATIC_MODE_SCOPE_WILDERNESS);
+	}
+
+	public static boolean getWarSiegeMapHidingModeAutomaticModeScopeBesiegedTowns() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_AUTOMATIC_MODE_SCOPE_BESIEGED_TOWNS);
+	}
+
+	public static boolean getWarSiegeMapHidingModeAutomaticModeScopeRuins() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_AUTOMATIC_MODE_SCOPE_RUINS);
+	}
+
+	public static boolean getWarSiegeMapHidingModeAutomaticModeScopeSiegezones() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_AUTOMATIC_MODE_SCOPE_SIEGEZONES);
+	}
+
+	public static double getWarSiegeMapHidingModeAutomaticModeScopeSiegezonesRadius() {
+		return Settings.getDouble(ConfigNodes.WAR_SIEGE_MAP_HIDING_AUTOMATIC_MODE_SCOPE_SIEGEZONES_RADIUS);
+	}
+
+	public static boolean getWarSiegeMapHidingTriggeringEnabled() {
+		return Settings.getBoolean(ConfigNodes.WAR_SIEGE_MAP_HIDING_TRIGGERING_ENABLED);
+	}
+
+	public static List<HeldItemsCombination> getWarSiegeMapHidingTriggeringItems() {
+		try {
+			if (mapHidingItems == null) {
+				mapHidingItems = new ArrayList<>();
+				String itemsListAsString = Settings.getString(ConfigNodes.WAR_SIEGE_MAP_HIDING_TRIGGERING_ITEMS);
+				String[] itemsListAsArray = itemsListAsString.split(",");
+				String[] itemPair;
+				boolean ignoreOffHand;
+				boolean ignoreMainHand;
+				Material offHandItem;
+				Material mainHandItem;
+
+				for (String itemAsString : itemsListAsArray) {
+					itemPair = itemAsString.trim().split("\\|");
+
+					if(itemPair[0].equalsIgnoreCase("any")) {
+						ignoreOffHand = true;
+						offHandItem = null;
+					} else if (itemPair[0].equalsIgnoreCase("empty")){
+						ignoreOffHand = false;
+						offHandItem = Material.AIR;
+					} else{
+						ignoreOffHand = false;
+						offHandItem = Material.matchMaterial(itemPair[0]);
+					}
+
+					if(itemPair[1].equalsIgnoreCase("any")) {
+						ignoreMainHand = true;
+						mainHandItem = null;
+					} else if (itemPair[1].equalsIgnoreCase("empty")){
+						ignoreMainHand = false;
+						mainHandItem = Material.AIR;
+					} else{
+						ignoreMainHand = false;
+						mainHandItem = Material.matchMaterial(itemPair[1]);
+					}
+
+					mapHidingItems.add(
+							new HeldItemsCombination(offHandItem,mainHandItem,ignoreOffHand,ignoreMainHand));
+				}
+			}
+		} catch (Exception e) {
+			SiegeWar.severe("Problem reading map hiding items list. The list is config.yml may be misconfigured.");
+			e.printStackTrace();
+		}
+		return mapHidingItems;
 	}
 
 	public static int getWarSiegeBannerControlSessionDurationMinutes() {
@@ -886,5 +984,13 @@ public class SiegeWarSettings {
 
 	public static int getDominationAwardsArtefactExpiryExplosionsMaxPower() {
 		return Settings.getInt(ConfigNodes.DOMINATION_AWARDS_ARTEFACT_EXPIRY_EXPLOSIONS_MAX_POWER);
+	}
+
+	public static boolean isBlockGlitchingPreventionEnabled() {
+		return Settings.getBoolean(ConfigNodes.BLOCK_GLITCHING_PREVENTION_ENABLED);
+	}
+
+	public static int getBlockGlitchingTeleportDelayMillis() {
+		return Settings.getInt(ConfigNodes.BLOCK_GLITCHING_PREVENTION_TELEPORT_DELAY_MILLIS);
 	}
 }

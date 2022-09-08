@@ -10,6 +10,7 @@ public class DynmapTask extends BukkitRunnable {
     }
 
     public void run() {
+        dynmapIntegration.applyMapHidingToPlayers();
         dynmapIntegration.displaySieges();
     }
 }
