@@ -20,8 +20,7 @@ public class NationMetaDataController {
         plunderGained = "siegewar_totalplundergained",
         plunderLost = "siegewar_totalplunderlost",
         townsGained = "siegewar_totaltownsgained",
-        townsLost = "siegewar_totaltownslost",
-        dominationRecordKey = "siegewar_dominationrecord";
+        townsLost = "siegewar_totaltownslost";
 
     private static final LongDataField pendingSiegeImmunityMillis = new LongDataField("siegewar_pendingSiegeImmunityMillis");
 
@@ -130,19 +129,5 @@ public class NationMetaDataController {
         LongDataField ldf = (LongDataField) pendingSiegeImmunityMillis.clone();
         if (nation.hasMeta(ldf.getKey()))
             nation.removeMetaData(ldf);
-    }
-
-	public static List<String> getDominationRecord(Nation nation) {
-        String recordString = getSdf(nation, dominationRecordKey).replaceAll(" ", "");
-        if(recordString.length() > 0) {
-            return new ArrayList<>(Arrays.asList(recordString.split(",")));
-        } else {
-            return new ArrayList<>();
-        }
-	}
-
-	public static void setDominationRecord(Nation nation, List<String> dominationRecord) {
-        String string = dominationRecord.size() > 0 ? dominationRecord.toString().replace("[", "").replace("]","") : "";
-        setSdf(nation, dominationRecordKey, string);
     }
 }
