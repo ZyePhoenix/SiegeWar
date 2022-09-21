@@ -228,6 +228,12 @@ public enum ConfigNodes {
 			"# A low setting will generally reduce the aggression level on the server.",
 			"# A low setting will also rebalance the system in favour of smaller nations.",
 		 	"# This is because it will prevent larger nations from conducting as many sieges as their resources would otherwise allow."),
+	WAR_SIEGE_MAX_PRIVATE_RANKS_PER_NATION(
+			"war.siege.quantities.max_private_ranks_per_nation",
+			"10",
+			"",
+			"# The value specifies the maximum number of privates allowed per nation.",
+			"# Setting this value to 0 will disabled the max privates check."),
 	WAR_SIEGE_SIEGECAMPS(
             "war.siege.siege_assemblies",
             "",
@@ -332,6 +338,12 @@ public enum ConfigNodes {
 			"7",
 			"",
 			"# This value determines the duration of each banner control session."),
+	WAR_SIEGE_PRIVATE_ADD_RANK_COOLDOWN (
+			"war.siege.times.private_add_rank_cooldown",
+			"48",
+			"",
+			"# This value determines the cooldown in hours for when a resident can be re-assigned private rank.",
+			"# Setting this value to 0 will disabled the cooldown check."),
 	WAR_SIEGE_DISTANCES(
 			"war.siege.distances",
 			"",

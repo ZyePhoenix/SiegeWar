@@ -36,6 +36,7 @@ import com.gmail.goosius.siegewar.listeners.SiegeWarTownEventListener;
 import com.gmail.goosius.siegewar.listeners.SiegeWarTownyEventListener;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -89,6 +90,13 @@ public class SiegeWar extends JavaPlugin {
 		checkIntegrations();
 		cleanupLegacyMetaData();
 
+		try {
+			SiegeWarNationEventListener.loadPrivateRankCooldownMap();
+			SiegeWarNationEventListener.loadNationPrivateMap();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 		if(siegeWarPluginError) {
 			severe("SiegeWar did not load successfully, and is now in safe mode!");
 		} else {
@@ -112,7 +120,13 @@ public class SiegeWar extends JavaPlugin {
 
 	@Override
     public void onDisable() {
-    	info("Shutting down...");
+		try {
+			SiegeWarNationEventListener.savePrivateRankCooldownMap();
+			SiegeWarNationEventListener.saveNationPrivateMap();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		info("Shutting down...");
     }
     
     private boolean loadAll() {

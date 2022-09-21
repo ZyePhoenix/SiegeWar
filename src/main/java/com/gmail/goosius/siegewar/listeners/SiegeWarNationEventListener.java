@@ -1,14 +1,19 @@
 package com.gmail.goosius.siegewar.listeners;
 
 import com.gmail.goosius.siegewar.SiegeController;
+import com.gmail.goosius.siegewar.SiegeWar;
 import com.gmail.goosius.siegewar.TownOccupationController;
 import com.gmail.goosius.siegewar.enums.SiegeSide;
 import com.gmail.goosius.siegewar.enums.SiegeType;
 import com.gmail.goosius.siegewar.enums.SiegeWarPermissionNodes;
 import com.gmail.goosius.siegewar.objects.Siege;
+import com.gmail.goosius.siegewar.settings.ConfigNodes;
+import com.gmail.goosius.siegewar.settings.Settings;
 import com.gmail.goosius.siegewar.settings.SiegeWarSettings;
 import com.gmail.goosius.siegewar.utils.PermissionUtil;
 import com.gmail.goosius.siegewar.utils.SiegeWarNationUtil;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.palmergames.bukkit.towny.TownyAPI;
 import com.palmergames.bukkit.towny.TownySettings;
 import com.palmergames.bukkit.towny.TownyUniverse;
@@ -16,14 +21,7 @@ import com.palmergames.bukkit.towny.event.NationBonusCalculationEvent;
 import com.palmergames.bukkit.towny.event.NationPreRemoveEnemyEvent;
 import com.palmergames.bukkit.towny.event.PreDeleteNationEvent;
 import com.palmergames.bukkit.towny.event.NationPreAddTownEvent;
-import com.palmergames.bukkit.towny.event.nation.NationRankAddEvent;
-import com.palmergames.bukkit.towny.event.nation.NationPreTownLeaveEvent;
-import com.palmergames.bukkit.towny.event.nation.NationListDisplayedNumOnlinePlayersCalculationEvent;
-import com.palmergames.bukkit.towny.event.nation.NationListDisplayedNumTownsCalculationEvent;
-import com.palmergames.bukkit.towny.event.nation.NationListDisplayedNumResidentsCalculationEvent;
-import com.palmergames.bukkit.towny.event.nation.NationListDisplayedNumTownBlocksCalculationEvent;
-import com.palmergames.bukkit.towny.event.nation.DisplayedNationsListSortEvent;
-import com.palmergames.bukkit.towny.event.nation.NationKingChangeEvent;
+import com.palmergames.bukkit.towny.event.nation.*;
 import com.palmergames.bukkit.towny.event.nation.toggle.NationToggleNeutralEvent;
 import com.palmergames.bukkit.towny.event.townblockstatus.NationZoneTownBlockStatusEvent;
 import com.palmergames.bukkit.towny.object.Nation;
@@ -37,7 +35,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
+import java.io.*;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 
@@ -46,9 +50,65 @@ import java.util.List;
  */
 public class SiegeWarNationEventListener implements Listener {
 
+	private static Type cooldownMapType = new TypeToken<Map<UUID, Long>>(){}.getType();
+	private static Type nationPrivateMapType = new TypeToken<Map<UUID, ArrayList<UUID>>>(){}.getType();
+	private static Map<UUID, Long> privateRankCooldownMap = new ConcurrentHashMap<>();
+	private static Map<UUID, ArrayList<UUID>> nationPrivateMap = new ConcurrentHashMap<>();
+	private static final long COOLDOWN_TIME = Settings.getInt(ConfigNodes.WAR_SIEGE_PRIVATE_ADD_RANK_COOLDOWN) * 3600000L;
+	private static final int MAX_NATION_PRIVATES = Settings.getInt(ConfigNodes.WAR_SIEGE_MAX_PRIVATE_RANKS_PER_NATION);
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGH)
+	public void onNationRankRemovedFromPlayer(NationRankRemoveEvent event) {
+		if (SiegeWarSettings.getWarSiegeEnabled() && event.getRank().contains("private")) {
+			Nation nation = event.getNation();
+			UUID nationUUID = nation.getUUID();
+			Resident player = event.getResident();
+			UUID playerUUID = player.getUUID();
+			if (nationPrivateMap.containsKey(nationUUID)) {
+				ArrayList<UUID> residents = nationPrivateMap.get(nationUUID);
+				if (residents.contains(playerUUID)) {
+					residents.remove(playerUUID);
+					nationPrivateMap.replace(nationUUID, residents);
+				}
+			}
+			applyCooldown(playerUUID);
+		}
+	}
+
+	@EventHandler(priority = EventPriority.HIGH)
 	public void onNationRankGivenToPlayer(NationRankAddEvent event) {
+		Nation nation = event.getNation();
+		UUID nationUUID = nation.getUUID();
+		Resident player = event.getResident();
+		UUID playerUUID = player.getUUID();
+
+		//optional checks to (1) limit number of privates allowed in a nation and
+		//(2) set a cooldown on how often privates can be switched out
+		if ((COOLDOWN_TIME > 0)
+				&& isOnCooldown(playerUUID)) {
+			event.setCancelled(true);
+			event.setCancelMessage(Translation.of("siegewar_plugin_prefix") + "Unable to add private rank to resident, they are on cooldown.");
+		} else if ((MAX_NATION_PRIVATES > 0)
+				&& getNationPrivatesCount(nationUUID) >= MAX_NATION_PRIVATES) {
+			event.setCancelled(true);
+			event.setCancelMessage(Translation.of("siegewar_plugin_prefix") + "Unable to add private rank to resident, nation reached max private limit.");
+		} else if ((COOLDOWN_TIME > 0)
+				&& !isOnCooldown(playerUUID)
+				&& (MAX_NATION_PRIVATES > 0)
+				&& getNationPrivatesCount(nationUUID) < MAX_NATION_PRIVATES) {
+			ArrayList<UUID> residents;
+			if (nationPrivateMap.containsKey(nationUUID)) {
+				residents = nationPrivateMap.get(nationUUID);
+				if (!residents.contains(playerUUID)) {
+					residents.add(playerUUID);
+				}
+			} else {
+				residents = new ArrayList<>();
+				residents.add(playerUUID);
+			}
+			nationPrivateMap.put(nationUUID, residents);
+		}
+
 		//In Siegewar, if target town is peaceful, can't add military rank
 		if(SiegeWarSettings.getWarSiegeEnabled()
 			&& SiegeWarSettings.getWarCommonPeacefulTownsEnabled()
@@ -319,6 +379,7 @@ public class SiegeWarNationEventListener implements Listener {
 		}
 	}
 
+	@EventHandler
 	public void onNationChangeKingEvent(NationKingChangeEvent event) {
 		Town oldCapital = event.getOldKing().getTownOrNull();
 		Town newCapital = event.getNewKing().getTownOrNull();
@@ -328,6 +389,73 @@ public class SiegeWarNationEventListener implements Listener {
 			&& (SiegeController.hasSiege(oldCapital) || SiegeController.hasSiege(newCapital))) {
 			event.setCancelled(true);
 			event.setCancelMessage(Translation.of("plugin_prefix") + Translation.of("msg_err_besieged_capital_cannot_change_king"));
+		}
+	}
+
+	public static boolean isOnCooldown(UUID player) {
+		return privateRankCooldownMap.containsKey(player)
+				&& privateRankCooldownMap.get(player) > System.currentTimeMillis();
+	}
+
+	public static void removeCooldown(UUID player) {
+		privateRankCooldownMap.remove(player);
+	}
+
+	public static void applyCooldown(UUID player) {
+		privateRankCooldownMap.put(player, System.currentTimeMillis() + COOLDOWN_TIME);
+	}
+
+	public static int getNationPrivatesCount(UUID nationUUID) {
+		if (nationPrivateMap.containsKey(nationUUID)) {
+			return nationPrivateMap.get(nationUUID).size();
+		} else {
+			return 0;
+		}
+	}
+
+	public static void savePrivateRankCooldownMap() throws IOException {
+		Gson gson = new Gson();
+		File file = new File(SiegeWar.getSiegeWar().getDataFolder().getAbsolutePath() + "/privateCooldowns.json");
+		file.getParentFile().mkdir();
+		file.createNewFile();
+		Writer writer = new FileWriter(file, false);
+		gson.toJson(privateRankCooldownMap, writer);
+		writer.flush();
+		writer.close();
+		Bukkit.getLogger().info("Cooldown map saved");
+	}
+
+	public static void saveNationPrivateMap() throws IOException {
+		Gson gson = new Gson();
+		File file = new File(SiegeWar.getSiegeWar().getDataFolder().getAbsolutePath() + "/nationPrivates.json");
+		file.getParentFile().mkdir();
+		file.createNewFile();
+		Writer writer = new FileWriter(file, false);
+		gson.toJson(nationPrivateMap, writer);
+		writer.flush();
+		writer.close();
+		Bukkit.getLogger().info("Nation privates saved");
+	}
+
+	public static void loadPrivateRankCooldownMap() throws IOException {
+		Gson gson = new Gson();
+		File file = new File(SiegeWar.getSiegeWar().getDataFolder().getAbsolutePath() + "/privateCooldowns.json");
+		if (file.exists()) {
+			Reader reader = new FileReader(file);
+			Map<UUID, Long> cooldowns = gson.fromJson(reader, cooldownMapType);
+			privateRankCooldownMap = cooldowns;
+			Bukkit.getLogger().info("Cooldowns loaded");
+		}
+	}
+
+	public static void loadNationPrivateMap() throws IOException {
+		Gson gson = new Gson();
+		File file = new File(SiegeWar.getSiegeWar().getDataFolder().getAbsolutePath() + "/nationPrivates.json");
+		if (file.exists()) {
+			Reader reader = new FileReader(file);
+			Map<UUID, ArrayList<UUID>> nationPrivates = gson.fromJson(reader, nationPrivateMapType);
+			nationPrivateMap = nationPrivates;
+			Bukkit.getLogger().info("Nation residents loaded");
 		}
 	}
 }
