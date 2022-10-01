@@ -258,7 +258,7 @@ public class SiegeWarDistanceUtil {
 		if(!TownyAPI.getInstance().isWilderness(targetLocation)) {
 			return false;  //In town. Protection does not apply.
 		} else if(targetLocation.getY() < siegeBannerLocation.getY() + upperHeightLimit
-					&& targetLocation.getY() > siegeBannerLocation.getY() + lowerHeightLimit) {
+					&& targetLocation.getY() > siegeBannerLocation.getY() - lowerHeightLimit) {
 			return false;  //Not high/low enough for protection
 		} else if(areLocationsCloseHorizontally(targetLocation, siegeBannerLocation, protectionRadiusBlocks)) {
 			return true;   //Target location is protected
